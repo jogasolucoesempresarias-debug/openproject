@@ -90,7 +90,7 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-      # O servidor (7,8 GB, 2 núcleos, SEM swap) é o mesmo da produção da Multpel. Sem teto,
+      # O servidor (7,8 GB, 2 núcleos, swap de 4 GB desde 15/10) é o mesmo da produção da Multpel. Sem teto,
       # um pico aqui faz o kernel matar processo de qualquer stack — inclusive a da Multpel.
       # Com teto, quem morre é o OpenProject, e o Swarm o reinicia. Medido em 14/10/2026:
       # 4,3 GB disponíveis antes do deploy.

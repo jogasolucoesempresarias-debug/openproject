@@ -63,8 +63,9 @@ número.
 **Por que pelas variáveis e não pelo código:** o próprio OpenProject tem os interruptores
 (`hidden_menu_items`, `ee_hide_banners`, `show_community_links`, `ee_manager_visible`). Os nomes de cada
 item vieram do código-fonte da 17.8.1 (`config/initializers/menus.rb` e `modules/*/lib/**/engine.rb`), com
-inventário de todo item marcado com `enterprise_feature`. Só o "Compartilhar" não tem interruptor, e por isso
-virou initializer.
+inventário de todo item marcado com `enterprise_feature`. Esse inventário só pega **itens de menu**. O
+"Compartilhar", o "Alerta de data" e os "Modelos" de reunião ficam nas laterais (`app/menus/`) e na tela, onde
+não há interruptor: o "Compartilhar" virou initializer; os outros dois estão nas Pendências.
 
 ## Como fazer
 
@@ -95,7 +96,11 @@ mv ~/JOGA-OpenProject ~/JOGA-OpenProject.antigo; git clone https://github.com/jo
 4. Rode o `conferir_*.rb` correspondente (abaixo).
 5. Atualize a tag no `stack.yml` e a seção "Estado" deste README.
 
-A tag anterior continua no servidor; voltar é trocar de novo para ela com o mesmo comando.
+A tag anterior continua no servidor. Para voltar, troque **só a imagem do serviço**, sem build: o comando
+acima com a tag antiga a sobrescreveria com o Dockerfile atual, e a volta não voltaria nada.
+```bash
+sudo docker service update --image joga-openproject:17.8.1-2 --no-resolve-image openproject_openproject
+```
 
 ### Conferir depois do deploy
 
@@ -141,7 +146,8 @@ trabalho" e "Visualizar pacotes de trabalho compartilhados" em cada papel. Isso 
 quem não é administrador; os filtros da lateral continuam com 💎.
 
 **Limite:** "Alerta de data", na Caixa de entrada, também é pago e continua aparecendo nas duas formas.
-**Se um dia comprarem o Enterprise:** apague o initializer e gere a imagem de novo.
+**Se um dia comprarem o Enterprise:** apague o initializer e gere a imagem de novo (o resto está em
+"Decisões e porquês").
 
 ### Mudar uma variável
 
@@ -161,9 +167,16 @@ depois de uso real.
 ### Atualizar o OpenProject (17.9, 18…)
 
 1. **Faça o backup** (abaixo). A versão nova atualiza o banco ao subir.
-2. Leia as notas da versão. Nas versões maiores, refaça o **inventário de itens pagos**: procure
-   `enterprise_feature` no `menus.rb` e nos `engine.rb` da versão nova, porque item pago novo aparece no menu
-   com 💎.
+2. Leia as notas da versão. Nas versões maiores, refaça o **inventário de itens pagos**, porque item pago
+   novo aparece com 💎. Procure em três lugares do código da versão nova:
+   - `enterprise_feature` em `config/initializers/menus.rb` e `modules/*/lib/**/engine.rb`: itens de menu,
+     escondidos pelas variáveis `HIDDEN__MENU__ITEMS_*`;
+   - `show_enterprise_icon` e `EnterpriseToken.allows_to?` em `app/menus/` e `modules/*/app/menus/`: filtros das
+     laterais;
+   - `allowsTo(` em `frontend/src/`: botões da tela.
+
+   Os dois últimos só se escondem por initializer. Foi por olhar só o primeiro que o "Compartilhar" escapou do
+   inventário de 19/10.
 3. Troque a versão na linha `FROM` do `Dockerfile`, gere com uma tag nova (ex.: `joga-openproject:17.9.0-1`) e
    publique como acima. Se o build falhar no `trocar-logo.sh` ou no `grep` do initializer, é o aviso de que a
    versão mudou algo que a JOGA altera: revise o arquivo indicado antes de forçar.
@@ -189,8 +202,9 @@ dois arquivos na hora de atualizar.
 - **Community, não Enterprise.** Portfólios e programas, Planejador de equipe, logo e cores, Compartilhar,
   espaço reservado e outros são pagos (Enterprise Basic: € 5,95 por usuário por mês, mínimo de 25, anual). O
   que a consultoria precisa já está na versão grátis: projeto por empresa, papéis por projeto (o cliente A
-  não vê o B), responsável e prazo, aviso por e-mail e modelos de projeto. Se um dia comprarem, apague o
-  initializer, tire `enterprise` da lista de admin e use a tela de Design.
+  não vê o B), responsável e prazo, aviso por e-mail e modelos de projeto. Se um dia comprarem: para digitar
+  a chave, ligue `EE__MANAGER__VISIBLE` e tire `enterprise` da lista de admin; para a tela de Design, tire
+  `custom_style`; tire das listas os demais itens comprados e apague o initializer.
 - **Imagem all-in-one** (banco, cache e app num container só): é o mais simples para o porte da JOGA e não
   mexe no Postgres compartilhado das outras stacks. O custo: atualização de versão maior do Postgres segue a
   da imagem, por isso o backup antes.
@@ -220,4 +234,3 @@ não tem.
 - [ ] Ainda com 💎 e sem tratamento: **"Alerta de data"** (Caixa de entrada) e **"Modelos"** de reunião.
 - [ ] Primeiro backup real, e decidir onde guardar uma cópia fora do servidor.
 - [ ] Remedir a memória depois de uso real e ajustar o teto de 3 GB.
-- [ ] O comentário do `stack.yml` ainda diz "SEM swap"; o servidor tem 4 GB de swap desde 15/10.
