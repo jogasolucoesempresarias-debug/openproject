@@ -1,0 +1,18 @@
+# Textos da JOGA POR CIMA da tradução oficial do OpenProject (pt-BR).
+#
+# Só as chaves listadas aqui mudam; todo o resto continua vindo do OpenProject. O Dockerfile copia este
+# arquivo para /app/config/locales/crowdin/, que o Rails carrega em ordem alfabética: "zz_" vem depois
+# de "pt-BR.yml", então estas chaves sobrescrevem as originais (config/application.rb, v17.8.1).
+#
+# E-mail de convite / ativação de conta (app/views/user_mailer/user_signed_up.html.erb).
+# O assunto já sai certo sozinho: usa o Título do aplicativo ("JOGA Consultoria").
+# Os 4 links (webinário, vídeos, YouTube, documentação) ficam de propósito — decisão do Gabriel.
+pt-BR:
+  mail_body_register_header_title: Convite para o portal da JOGA
+  mail_body_register: 'Bem-vindo ao portal da JOGA. Para ativar sua conta, clique neste link:'
+  mail_body_register_links_html: >-
+    Para começar, assista ao webinário (%{webinar_link}), aos vídeos de introdução (%{get_started_link})
+    e ao canal no YouTube (%{youtube_link}). Se tiver dúvidas, consulte a documentação
+    (%{documentation_link}) ou fale com a equipe da JOGA.
+  mail_body_register_ending: 'Atenciosamente,'
+  mail_body_register_closing: Equipe JOGA

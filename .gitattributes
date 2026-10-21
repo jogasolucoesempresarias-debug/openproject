@@ -1,0 +1,5 @@
+# Arquivos que rodam no Linux (servidor) sempre com fim de linha Unix.
+*.sh  text eol=lf
+*.rb  text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf

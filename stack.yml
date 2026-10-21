@@ -1,0 +1,115 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stack OPENPROJECT — consultoria.jogasolucoes.com.br  (Portainer / Docker Swarm + Traefik)
+#
+# Imagem ALL-IN-ONE oficial: um container com web + worker + cron + Postgres + memcached.
+# Auto-contida (não toca o Postgres de nenhuma outra stack). Mesmo padrão de Traefik da
+# demo da Multpel: rede `proxy`, entrypoint `websecure`, certresolver `le`.
+#
+# ⏳ 1º boot leva alguns minutos (cria o banco e semeia). Acompanhe o log até o OpenProject
+#    responder. Login: `admin` / a senha de OP_ADMIN_SENHA.
+#
+# 🔑 TRÊS variáveis vêm do ENV DA STACK (Portainer → Environment variables), nunca daqui:
+#      OP_RESEND_API_KEY    →  o valor de RESEND_API_KEY do .env da Multpel
+#      OP_SECRET_KEY_BASE   →  gere com `openssl rand -hex 64`
+#                              ⚠️ NUNCA troque depois: ela cifra conteúdo do banco; mudar
+#                              derruba as sessões e deixa dado cifrado ilegível.
+#                              O OpenProject 17 se recusa a subir com valor fraco ou default.
+#      OP_ADMIN_SENHA       →  senha do usuário `admin`. Sem ela a imagem semeia admin/admin,
+#                              e quem abrir o domínio antes de você vira o admin.
+#
+# 📌 Tag FIXA de propósito (a doc pede tag não flutuante em produção). Para atualizar, troque
+#    a tag e faça backup do volume pgdata ANTES — o Postgres embutido segue a versão da imagem.
+# ─────────────────────────────────────────────────────────────────────────────
+version: "3.8"
+
+services:
+  openproject:
+    # Imagem oficial + logo da JOGA, gerada NO SERVIDOR pelo Dockerfile desta pasta
+    # (`sudo docker build -t joga-openproject:17.8.1-3 .`; o "-3" = 3ª montagem sobre a 17.8.1: logo, tradução e
+    # sem o "Compartilhar" pago; a -2 fica para voltar). Não está em registry: no Portainer,
+    # deixe "Re-pull image" DESLIGADO. Para voltar à oficial: openproject/openproject:17.8.1
+    image: joga-openproject:17.8.1-3
+    networks:
+      - proxy
+    environment:
+      TZ: "America/Sao_Paulo"
+      OPENPROJECT_HOST__NAME: "consultoria.jogasolucoes.com.br"
+      # O TLS termina no Traefik; o container fala HTTP na porta 80 e confia no
+      # X-Forwarded-Proto. HTTPS=true liga cookie seguro e HSTS — não desligue.
+      OPENPROJECT_HTTPS: "true"
+      OPENPROJECT_DEFAULT__LANGUAGE: "pt-BR"
+      SECRET_KEY_BASE: "${OP_SECRET_KEY_BASE}"
+      # ── Modo leve (time pequeno) ──
+      # Cada processo web é uma cópia inteira do Rails na memória; o default são 2. "0" = Puma
+      # em modo SIMPLES (um processo só, sem o mestre) — sugestão do próprio Puma no log ao ver
+      # 1 worker em modo cluster. Medido em 15/10/2026: 2,0 GB com "1" → 1,42 GB com "0".
+      # As threads do default (4–16) atendem uma consultoria com algumas dezenas de usuários;
+      # se a tela ficar lenta com muita gente ao mesmo tempo, suba para 2.
+      OPENPROJECT_WEB_WORKERS: "0"
+      # Tarefas em segundo plano (e-mail, notificações): o default é 20 threads simultâneas.
+      OPENPROJECT_GOOD__JOB__MAX__THREADS: "5"
+      # ── Esconde os recursos PAGOS (Enterprise) dos menus ──
+      # Sem a chave Enterprise eles aparecem com o selo 💎 como propaganda. Os nomes são os do
+      # código (config/initializers/menus.rb e modules/team_planner, v17.8.1); o filtro é do
+      # próprio OpenProject (hidden_menu_items), não é gambiarra.
+      OPENPROJECT_HIDDEN__MENU__ITEMS_GLOBAL__MENU: "portfolios team_planners"
+      OPENPROJECT_HIDDEN__MENU__ITEMS_TOP__MENU: "portfolios team_planners"
+      # Inventário de TODO item com enterprise_feature na 17.8.1 (menus.rb + modules/*/engine.rb):
+      # admin = espaço reservado, ações personalizadas, IA/MCP (o único filho da IA é pago),
+      # SCIM, Design, SAML, OpenID, grupos/departamentos LDAP, e a página "Edição Enterprise".
+      OPENPROJECT_HIDDEN__MENU__ITEMS_ADMIN__MENU: "placeholder_users custom_actions ai mcp_configurations scim_clients custom_style plugin_saml plugin_openid_connect plugin_ldap_groups plugin_ldap_departments enterprise"
+      OPENPROJECT_HIDDEN__MENU__ITEMS_PROJECT__MENU: "resource_management team_planner_view"
+      OPENPROJECT_DISABLED__MODULES: "team_planner_view resource_management"
+      # Interruptores OFICIAIS (config/constants/settings/definition.rb, v17.8.1):
+      # ee_hide_banners = some o bloco "Planos para empresas" da página inicial (upsell) e os
+      # banners de propaganda do Enterprise; show_community_links = some "Novos recursos" e
+      # "Comunidade" da página inicial; ee_manager_visible = some a página "Edição Enterprise".
+      OPENPROJECT_EE__HIDE__BANNERS: "true"
+      OPENPROJECT_SHOW__COMMUNITY__LINKS: "false"
+      OPENPROJECT_EE__MANAGER__VISIBLE: "false"
+      # Admin semeado no 1º boot com senha forte (sem o admin/admin da imagem).
+      OPENPROJECT_SEED__ADMIN__USER__PASSWORD: "${OP_ADMIN_SENHA}"
+      OPENPROJECT_SEED__ADMIN__USER__PASSWORD__RESET: "false"
+      OPENPROJECT_SEED__ADMIN__USER__MAIL: "admin@jogasolucoes.com.br"
+      # ── E-mail (é por ele que o cliente fica sabendo da tarefa) ──
+      # Resend por SMTP: usuário fixo "resend", senha = a API key (a mesma RESEND_API_KEY do
+      # .env da Multpel). O Resend verifica o DOMÍNIO, então qualquer @jogasolucoes.com.br sai.
+      OPENPROJECT_EMAIL__DELIVERY__METHOD: "smtp"
+      OPENPROJECT_SMTP__ADDRESS: "smtp.resend.com"
+      OPENPROJECT_SMTP__PORT: "587"
+      OPENPROJECT_SMTP__USER__NAME: "resend"
+      OPENPROJECT_SMTP__PASSWORD: "${OP_RESEND_API_KEY}"
+      OPENPROJECT_SMTP__AUTHENTICATION: "login"
+      OPENPROJECT_SMTP__ENABLE__STARTTLS__AUTO: "true"
+      OPENPROJECT_MAIL__FROM: "jogasolucoes@jogasolucoes.com.br"
+    volumes:
+      - openproject-pgdata:/var/openproject/pgdata
+      - openproject-assets:/var/openproject/assets
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      # O servidor (7,8 GB, 2 núcleos, SEM swap) é o mesmo da produção da Multpel. Sem teto,
+      # um pico aqui faz o kernel matar processo de qualquer stack — inclusive a da Multpel.
+      # Com teto, quem morre é o OpenProject, e o Swarm o reinicia. Medido em 14/10/2026:
+      # 4,3 GB disponíveis antes do deploy.
+      resources:
+        limits:
+          memory: 3G
+          cpus: "1.5"
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=proxy"
+        - "traefik.http.routers.openproject.rule=Host(`consultoria.jogasolucoes.com.br`)"
+        - "traefik.http.routers.openproject.entrypoints=websecure"
+        - "traefik.http.routers.openproject.tls.certresolver=le"
+        - "traefik.http.services.openproject.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  openproject-pgdata:
+  openproject-assets:
