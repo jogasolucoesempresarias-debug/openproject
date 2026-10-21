@@ -26,8 +26,9 @@ número.
 
 | | |
 |---|---|
-| **No ar** | `joga-openproject:17.8.1-2`: logo + e-mail de convite da JOGA (conferido no Gmail em 19/10) |
-| **Pronta, deploy pendente** | `joga-openproject:17.8.1-3`: a `-2` + o "Compartilhar" pago escondido. Testada em Docker local em 21/10. O [`stack.yml`](stack.yml) já aponta para ela |
+| **No ar** | `joga-openproject:17.8.1-3` desde 21/10: logo, e-mail de convite da JOGA (conferido no Gmail em 19/10) e o "Compartilhar" pago escondido (o mesmo código passou no teste em Docker local antes do deploy) |
+| **Para voltar** | `joga-openproject:17.8.1-2`, a anterior, sem o initializer. Continua no servidor |
+| **Pasta no servidor** | `~/JOGA-OpenProject`, clone deste repositório desde 21/10. A cópia de antes do git ficou em `~/JOGA-OpenProject.antigo` |
 | **Servidor** | VPS da JOGA (2 vCPU, 7,8 GB, swap de 4 GB desde 15/10). O mesmo servidor da produção da Multpel |
 | **Stack / serviço** | `openproject` / `openproject_openproject` |
 | **Memória** | ~1,42 GB medido em 15/10, com teto de 3 GB e 1,5 vCPU |
@@ -76,7 +77,7 @@ quebra no MobaXterm.
 clonado em `~/JOGA-OpenProject`. Arrastar arquivo um por um já fez um build sair sem a tradução, porque um
 arquivo ficou para trás; o `git pull` traz a pasta inteira.
 
-Primeira vez, no servidor:
+O clone foi feito em 21/10. Só repita se o servidor for refeito:
 ```bash
 mv ~/JOGA-OpenProject ~/JOGA-OpenProject.antigo; git clone https://github.com/jogasolucoesempresarias-debug/openproject.git ~/JOGA-OpenProject
 ```
@@ -88,9 +89,10 @@ mv ~/JOGA-OpenProject ~/JOGA-OpenProject.antigo; git clone https://github.com/jo
 2. No servidor: `cd ~/JOGA-OpenProject && git pull`. No build, o número de passos (`[N/N]`) tem de bater com
    o Dockerfile novo. Na `-3` são **7 passos**; o último é o
    `RUN grep` que confere o initializer.
-3. Gere a imagem com **uma tag nova** e troque no serviço. O site fica de 1 a 2 minutos fora:
+3. Gere a imagem com **uma tag nova** e troque no serviço. A última publicada é a `-3`, então a próxima é a
+   `-4`. O site fica de 1 a 2 minutos fora:
    ```bash
-   cd ~/JOGA-OpenProject && git pull && sudo docker build -t joga-openproject:17.8.1-3 . && sudo docker service update --image joga-openproject:17.8.1-3 --no-resolve-image openproject_openproject
+   cd ~/JOGA-OpenProject && git pull && sudo docker build -t joga-openproject:17.8.1-4 . && sudo docker service update --image joga-openproject:17.8.1-4 --no-resolve-image openproject_openproject
    ```
    Durante o boot, o site responde "Bad Gateway" (do Traefik) e depois "503" (do Apache interno). É normal.
 4. Rode o `conferir_*.rb` correspondente (abaixo).
@@ -126,18 +128,9 @@ todo mundo, e `Notifications::Menu#reason_filters` tem a lista fixa. Não há in
 [`initializers/zz_joga_sem_compartilhar.rb`](initializers/zz_joga_sem_compartilhar.rb), que entra na imagem
 `-3`.
 
-**Para publicar:**
-1. Traga os arquivos: `cd ~/JOGA-OpenProject && git pull`.
-2. Confira que chegaram. Tem de listar os dois arquivos e responder `2`:
-   ```bash
-   ls ~/JOGA-OpenProject/initializers ~/JOGA-OpenProject/conferir_compartilhar.rb && grep -c sem_compartilhar ~/JOGA-OpenProject/Dockerfile
-   ```
-3. Gere e publique. O build tem de mostrar **7 passos**; o site fica de 1 a 2 minutos fora:
-   ```bash
-   cd ~/JOGA-OpenProject && sudo docker build -t joga-openproject:17.8.1-3 . && sudo docker service update --image joga-openproject:17.8.1-3 --no-resolve-image openproject_openproject
-   ```
-4. Rode o `conferir_compartilhar.rb` (em [Conferir depois do deploy](#conferir-depois-do-deploy)). Tem de dar
-   três linhas `OK:`. Depois abra uma tarefa com **Ctrl+F5**.
+**Publicado em 21/10**, na imagem `-3`. Para conferir de novo, rode o `conferir_compartilhar.rb` (em
+[Conferir depois do deploy](#conferir-depois-do-deploy)): tem de dar três linhas `OK:`. Na tela, uma tarefa
+aberta com **Ctrl+F5** não tem o botão, e a lateral termina em "Atribuído a mim".
 
 **Voltar:** `sudo docker service update --image joga-openproject:17.8.1-2 --no-resolve-image openproject_openproject`.
 
@@ -224,7 +217,6 @@ não tem.
 
 ## Pendências
 
-- [ ] **Deploy da imagem `-3`** (sem Compartilhar) e `conferir_compartilhar.rb`.
 - [ ] **Alinhar o editor do Portainer com o `stack.yml`**, e só depois liberar edição por lá.
 - [ ] **Apagar os projetos de demonstração** antes de convidar o primeiro cliente: eles são públicos e
       aparecem para qualquer pessoa logada.
